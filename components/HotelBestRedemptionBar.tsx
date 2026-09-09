@@ -8,7 +8,7 @@ interface HotelBestRedemptionBarProps {
   result: PointsResult | null;
   onCompareClick: () => void;
   compareLabel: string;
-  primaryCta?: { label: string; onClick?: () => void };
+  primaryCta?: { label: string; href?: string };
 }
 
 const UpArrowIcon = () => (
@@ -73,12 +73,28 @@ export function HotelBestRedemptionBar({ result, onCompareClick, compareLabel, p
         )}
       </div>
       {primaryCta && (
-        <button
-          onClick={primaryCta.onClick}
-          className="w-full bg-cv-lime-500 hover:bg-cv-lime-400 text-cv-navy-950 font-extrabold text-xs min-h-11 rounded-lg transition-colors"
-        >
-          {primaryCta.label}
-        </button>
+        primaryCta.href ? (
+          <a
+            href={primaryCta.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-full bg-cv-lime-500 hover:bg-cv-lime-400 text-cv-navy-950 font-extrabold text-xs min-h-11 rounded-lg transition-colors"
+          >
+            {primaryCta.label}
+          </a>
+        ) : (
+          <>
+            <span
+              aria-hidden="true"
+              className="flex items-center justify-center w-full bg-cv-lime-500 text-cv-navy-950 font-extrabold text-xs min-h-11 rounded-lg opacity-50 cursor-not-allowed"
+            >
+              {primaryCta.label}
+            </span>
+            <p className="text-[9px] text-cv-navy-300 mt-1 text-center">
+              Not linked yet — visit {name} directly to book
+            </p>
+          </>
+        )
       )}
       <button
         onClick={onCompareClick}

@@ -120,7 +120,11 @@ test.describe('Flights page — results', () => {
     // Exactly one of the two carries the "Best choice" highlight — whichever
     // actually beats the other, portal or transfer — never both, never neither.
     await expect(card.getByText('Best choice')).toHaveCount(1);
-    await expect(card.getByRole('button', { name: /^View .+ deal$/ }).first()).toBeVisible();
+    const viewDealLink = card.getByRole('link', { name: /^(Book on|Visit) .+$/ }).first();
+    await expect(viewDealLink).toBeVisible();
+    await expect(viewDealLink).toHaveAttribute('target', '_blank');
+    await expect(viewDealLink).toHaveAttribute('href', /^https:\/\//);
+    await expect(viewDealLink).toHaveAttribute('rel', /noopener/);
 
     await card.getByRole('button', { name: '↑ Hide' }).click();
     await expect(card.getByText('Best choice')).not.toBeVisible();
@@ -185,7 +189,9 @@ test.describe('Flights page — results', () => {
     const popover = card.getByRole('dialog');
     await expect(popover).toBeVisible();
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await expect(popover.getByRole('button', { name: /^View .+ deal$/ }).first()).toBeVisible();
+    const popoverDealLink = popover.getByRole('link', { name: /^(Book on|Visit) .+$/ }).first();
+    await expect(popoverDealLink).toBeVisible();
+    await expect(popoverDealLink).toHaveAttribute('href', /^https:\/\//);
 
     // The popover covers the points grid exactly — it must not spill onto the
     // next result card or leave the grid half-visible behind it.

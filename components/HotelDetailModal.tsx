@@ -11,11 +11,23 @@ import { calcPoints } from '@/lib/points/calcPoints';
 import type { PointsResult } from '@/lib/points/types';
 import { RedemptionTable } from '@/components/RedemptionTable';
 import { trpc } from '@/lib/trpc-client';
+import { getBestOption } from '@/lib/points/rankOptions';
+import { PORTAL_TRAVEL_URLS, resolvePartnerUrl } from '@/lib/points/partnerLinks';
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.round(
     (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24),
   );
+}
+
+/** Where "Reserve" goes — the issuer's travel page for the best portal, the partner's own site for the best transfer. */
+function resolveBestDealUrl(result: PointsResult | null): string | undefined {
+  const best = getBestOption(result);
+  if (!best) return undefined;
+  const url = best.kind === 'portal'
+    ? PORTAL_TRAVEL_URLS[best.group.portalId]
+    : resolvePartnerUrl(best.transfer.partnerProgram);
+  return url ?? undefined;
 }
 
 function ratingLabel(score: number): string | null {
@@ -376,7 +388,7 @@ function RoomCard({
         {/* Best portal panel */}
         <HotelBestRedemptionBar
           result={pointsResult}
-          primaryCta={{ label: 'Reserve →' }}
+          primaryCta={{ label: 'Reserve →', href: resolveBestDealUrl(pointsResult) }}
           compareLabel={`Compare ${pointsResult?.portalGroups.length ?? 0} portals`}
           onCompareClick={() => setShowPopup(true)}
         />

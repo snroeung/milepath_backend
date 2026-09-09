@@ -160,6 +160,30 @@ test.describe('Hotels page — results', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Close comparison' })).not.toBeVisible();
   });
+
+  test('Reserve link on the best redemption bar opens the booking portal', async ({ page }) => {
+    await gotoHotelsWithResults(page);
+
+    const cards = page.getByTestId('hotel-card');
+    const total = await cards.count();
+    test.skip(total === 0, 'No hotels returned by Duffel for this query');
+
+    await cards.first().locator('h3').click();
+    await expect(page.getByRole('button', { name: 'Close' })).toBeVisible({ timeout: 10_000 });
+
+    const roomsHeading = page.getByText('Choose your room');
+    const hasRooms = await roomsHeading.isVisible({ timeout: 15_000 }).catch(() => false);
+    test.skip(!hasRooms, 'No priced room types returned for this hotel');
+
+    // Every seed transfer partner and every issuer portal resolves a deep
+    // link (lib/points/partnerLinks.ts) — the fallback "Not linked yet"
+    // disclaimer has no live trigger, so the CTA is always a real link here.
+    const reserveLink = page.getByRole('link', { name: 'Reserve →' }).first();
+    await expect(reserveLink).toBeVisible({ timeout: 15_000 });
+    await expect(reserveLink).toHaveAttribute('target', '_blank');
+    await expect(reserveLink).toHaveAttribute('href', /^https:\/\//);
+    await expect(reserveLink).toHaveAttribute('rel', /noopener/);
+  });
 });
 
 test.describe('Hotels page — pagination', () => {

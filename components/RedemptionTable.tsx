@@ -9,6 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { trpc } from '@/lib/trpc-client';
 import type { TransferBonus } from '@/lib/types/offers';
 import { ISSUER_LOYALTY_NAME, formatBonusEndDate, findBonusForEligibleCards } from '@/lib/points/transferBonus';
+import { PORTAL_TRAVEL_URLS, resolvePartnerUrl } from '@/lib/points/partnerLinks';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,6 +40,25 @@ const TRANSFER_MARK = '#38BDF8';
 
 function markColor(view: OptionRowView): string {
   return view.kind === 'transfer' ? TRANSFER_MARK : PORTAL_MARK[view.sourcePortalId];
+}
+
+/** Where the CTA goes — the issuer's travel page for a portal row, the partner's own site for a transfer row. */
+function resolveDeepLink(view: OptionRowView): string | null {
+  return view.kind === 'portal' ? PORTAL_TRAVEL_URLS[view.sourcePortalId] : resolvePartnerUrl(view.sourceName);
+}
+
+/**
+ * "Book" reads right for a portal row — it's a direct cash booking. A transfer
+ * row isn't bookable in one step (points have to move first), so "Visit" is
+ * what's actually true of clicking through to the partner's own site.
+ */
+function ctaLabel(kind: OptionRowView['kind']): string {
+  return kind === 'portal' ? 'Book on portal' : 'Visit partner';
+}
+
+/** Screen readers get the real name; the visible label stays generic since the row's own headline already names it. */
+function ctaAriaLabel(view: OptionRowView): string {
+  return view.kind === 'portal' ? `Book on ${view.sourceName}` : `Visit ${view.sourceName}`;
 }
 
 function EstMark({ isDark, title }: { isDark: boolean; title?: string }) {
@@ -208,6 +228,7 @@ function SourceCards({ view, isDark }: { view: OptionRowView; isDark: boolean })
 function FeaturedRow({ view, isDark }: { view: OptionRowView; isDark: boolean }) {
   const tier = view.cpp !== null ? cppTier(view.cpp) : null;
   const earnLine = cashEarnLine(view);
+  const dealUrl = resolveDeepLink(view);
 
   const inkCls = isDark ? 'text-gph-dark-ink' : 'text-gray-900';
   const mutedCls = isDark ? 'text-gph-dark-muted' : 'text-gray-500';
@@ -277,13 +298,30 @@ function FeaturedRow({ view, isDark }: { view: OptionRowView; isDark: boolean })
 
         {/* Action */}
         <div className={`${ACTION_COL} shrink-0`}>
-          <button
-            type="button"
-            aria-label={`View ${view.sourceName} deal`}
-            className={`min-h-11 w-full px-4 rounded-lg text-sm font-bold transition-colors ${btnCls}`}
-          >
-            View deal
-          </button>
+          {dealUrl ? (
+            <a
+              href={dealUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={ctaAriaLabel(view)}
+              className={`flex items-center justify-center min-h-11 w-full px-4 rounded-lg text-sm font-bold text-center transition-colors ${btnCls}`}
+            >
+              {ctaLabel(view.kind)} →
+            </a>
+          ) : (
+            <>
+              <span
+                aria-hidden="true"
+                className={`flex items-center justify-center min-h-11 w-full px-4 rounded-lg text-sm font-bold text-center opacity-50 cursor-not-allowed ${btnCls}`}
+              >
+                {ctaLabel(view.kind)} →
+              </span>
+              <p className={`text-[10px] mt-1 text-center ${mutedCls}`}>
+                Not linked yet — visit {view.sourceName} directly to book
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -307,6 +345,7 @@ function AlternativeRow({
   const mutedCls = isDark ? 'text-gph-dark-muted' : 'text-gray-500';
   const borderCls = isDark ? 'border-gph-dark-line' : 'border-gray-200';
   const earnLine = cashEarnLine(view);
+  const dealUrl = resolveDeepLink(view);
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 ${borderCls}`}>
@@ -342,17 +381,36 @@ function AlternativeRow({
           );
         })()}
         {earnLine && <p className={`text-[10px] font-mono mt-0.5 ${mutedCls}`}>{earnLine}</p>}
+        {!dealUrl && (
+          <p className={`text-[10px] font-mono mt-0.5 ${mutedCls}`}>
+            Not linked yet — visit {view.sourceName} directly to book
+          </p>
+        )}
       </div>
 
-      <button
-        type="button"
-        aria-label={`View ${view.sourceName} deal`}
-        className={`shrink-0 min-h-11 px-3 rounded-lg text-[11px] font-extrabold transition-colors ${
-          isDark ? 'bg-gph-dark-action hover:bg-gph-dark-actionhi text-gph-dark-bg' : 'bg-gray-900 hover:bg-gray-700 text-white'
-        }`}
-      >
-        View deal
-      </button>
+      {dealUrl ? (
+        <a
+          href={dealUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={ctaAriaLabel(view)}
+          className={`shrink-0 flex items-center justify-center min-h-11 px-3 rounded-lg text-[11px] font-extrabold text-center transition-colors ${
+            isDark ? 'bg-gph-dark-action hover:bg-gph-dark-actionhi text-gph-dark-bg' : 'bg-gray-900 hover:bg-gray-700 text-white'
+          }`}
+        >
+          {ctaLabel(view.kind)} →
+        </a>
+      ) : (
+        <span
+          aria-hidden="true"
+          className={`shrink-0 flex items-center justify-center min-h-11 px-3 rounded-lg text-[11px] font-extrabold text-center opacity-50 cursor-not-allowed ${
+            isDark ? 'bg-gph-dark-action text-gph-dark-bg' : 'bg-gray-900 text-white'
+          }`}
+        >
+          {ctaLabel(view.kind)} →
+        </span>
+      )}
     </div>
   );
 }

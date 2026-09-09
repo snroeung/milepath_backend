@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { PORTAL_TRAVEL_URLS } from '@/lib/points/partnerLinks';
+import type { PortalId } from '@/lib/points/types';
 
 const ISSUER_LABELS: Record<string, string> = {
   chase: 'Chase', amex: 'American Express', c1: 'Capital One', bilt: 'Bilt', citi: 'Citi',
@@ -17,16 +19,8 @@ const ISSUER_OFFICIAL_HOSTS: Record<string, string[]> = {
   citi: ['citi.com', 'thankyou.com'],
 };
 
-const ISSUER_LOGIN_URLS: Record<string, string> = {
-  chase: 'https://travel.chase.com',
-  amex: 'https://www.americanexpress.com/en-us/travel/',
-  c1: 'https://travel.capitalone.com',
-  bilt: 'https://www.biltrewards.com/travel',
-  citi: 'https://www.thankyou.com',
-};
-
 function resolveCollectionUrl(sourceUrl: string | null, issuer: string): string | null {
-  const loginUrl = ISSUER_LOGIN_URLS[issuer] ?? null;
+  const loginUrl = PORTAL_TRAVEL_URLS[issuer as PortalId] ?? null;
   if (!sourceUrl) return loginUrl;
 
   const officialHosts = ISSUER_OFFICIAL_HOSTS[issuer] ?? [];
