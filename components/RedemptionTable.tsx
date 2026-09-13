@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { PointsResult, PortalId, TransferResult, CHASE_LEGACY_RATE_SUNSET_DATE } from '@/lib/points/types';
+import { PointsResult, PortalId, TransferResult } from '@/lib/points/types';
 import { rankOptions } from '@/lib/points/rankOptions';
 import { buildRowView, cashEarnLine, splitFeatured, type OptionRowView, type SourceCardView } from '@/lib/points/rowView';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -603,8 +603,9 @@ export function RedemptionTable({
       <p className={`px-5 py-3 text-[10px] font-mono leading-relaxed rounded-b-xl ${mutedCls}`}>
         Values compare each option against the current cash price. Transfer rows use simplified saver
         award rates{liveBonus ? ', with the live bonus already applied' : ''}; cash earnings assume the
-        listed card&rsquo;s travel-category multiplier. Chase Sapphire shows both rates — legacy fixed
-        rates are grandfathered until {CHASE_LEGACY_RATE_SUNSET_DATE}.
+        listed card&rsquo;s travel-category multiplier. Chase Sapphire&rsquo;s Points Boost rate shown
+        is a 1.0¢/pt baseline (actual per-booking boost, up to 2.0¢/pt on Reserve or 1.75¢/pt on
+        Preferred, isn&rsquo;t modeled).
       </p>
 
       {altOpen && alternatives.length > 0 && (

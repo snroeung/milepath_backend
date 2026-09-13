@@ -469,7 +469,7 @@ function HotelsPageInner() {
           )}
 
           <p className={`text-[10px] font-bold font-mono tracking-widest uppercase ${textMuted}`}>
-            FROM · CASH
+            FROM
           </p>
           <p className={`text-lg font-extrabold tracking-tight leading-none mb-2.5 ${textPrimary}`}>
             {data.priceLabel}

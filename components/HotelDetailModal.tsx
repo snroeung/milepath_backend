@@ -257,7 +257,6 @@ function RoomCard({
 
   const rate            = cheapestRoomRate(room);
   const pricePerRoom    = rate ? parseFloat(rate.total_amount) : 0;
-  const perNight        = nights > 0 && pricePerRoom > 0 ? pricePerRoom / nights : pricePerRoom;
   const photo           = (room.photos?.[0]?.url ?? fallbackPhoto) as string | null;
   const beds            = bedLabel(room.beds);
   const board           = rate ? (BOARD_LABELS[rate.board_type] ?? '') : '';
@@ -267,7 +266,6 @@ function RoomCard({
   const defaultQty      = Math.min(Math.max(1, Math.ceil(guestCount / 2)), maxQty);
   const [roomQty, setRoomQty] = useState(defaultQty);
 
-  const insufficient    = quantityLeft !== null && quantityLeft < roomQty;
   const totalPrice      = pricePerRoom * roomQty;
 
   const pointsResult = totalPrice > 0
@@ -312,17 +310,6 @@ function RoomCard({
         <div className="px-4 pt-3.5 pb-2 flex flex-col gap-1">
           <p className={`text-sm font-extrabold leading-tight ${textPrimary}`}>{room.name}</p>
           {beds && <p className={`text-[11px] font-mono ${textMuted}`}>{beds}</p>}
-          {quantityLeft !== null && (
-            <p className={`text-[10px] font-bold font-mono tracking-wide mt-0.5 ${
-              insufficient
-                ? 'text-amber-600'
-                : 'text-cv-green-700'
-            }`}>
-              {insufficient
-                ? `Only ${quantityLeft} room${quantityLeft !== 1 ? 's' : ''} left`
-                : `${quantityLeft} available`}
-            </p>
-          )}
 
           {pricePerRoom > 0 && (
             <>
@@ -346,29 +333,54 @@ function RoomCard({
                 </div>
               </div>
 
-              {/* Price */}
-              <div className={`flex items-baseline justify-between pt-2 border-t ${divider}`}>
-                <div>
-                  <p className={`text-[9px] font-bold font-mono tracking-widest uppercase ${textMuted}`}>Total · Cash</p>
-                  <p className={`text-lg font-extrabold tracking-tight leading-none mt-0.5 ${textPrimary}`}>
-                    {totalPrice.toLocaleString('en-US', { style: 'currency', currency, maximumFractionDigits: 0 })}
-                  </p>
-                </div>
-                <p className={`text-[11px] text-right font-mono ${textMuted}`}>
-                  {perNight.toLocaleString('en-US', { style: 'currency', currency, maximumFractionDigits: 0 })}/room/night
-                </p>
-              </div>
-
-              {/* Per-portal cash prices (est. portal markups) */}
-              {pointsResult && pointsResult.portalGroups.length > 1 && (
-                <p className={`text-[10px] font-mono mt-1 ${textMuted}`}>
-                  Portal cash{' '}
-                  {Math.min(...pointsResult.portalGroups.map(g => g.priceUsd)).toLocaleString('en-US', { style: 'currency', currency, maximumFractionDigits: 0 })}
-                  –
-                  {Math.max(...pointsResult.portalGroups.map(g => g.priceUsd)).toLocaleString('en-US', { style: 'currency', currency, maximumFractionDigits: 0 })}
-                  {' '}~est.
-                </p>
-              )}
+              {/* Price — portal cash ranges only (est. portal markups).
+                  Label above value (not side-by-side) so neither clips when
+                  text is resized to 200% per WCAG 1.4.4/1.4.10. The dash is
+                  aria-hidden with a visually-hidden "to" alongside it so a
+                  screen reader announces an unambiguous range instead of
+                  reading the en dash as a word or number. */}
+              {pointsResult && (() => {
+                const fmt = (v: number) =>
+                  v.toLocaleString('en-US', { style: 'currency', currency, maximumFractionDigits: 0 });
+                const renderRange = (min: number, max: number, valueCls: string) =>
+                  min === max ? (
+                    <p className={valueCls}>{fmt(min)}</p>
+                  ) : (
+                    <p className={valueCls}>
+                      {fmt(min)}
+                      <span aria-hidden="true"> – </span>
+                      <span className="sr-only"> to </span>
+                      {fmt(max)}
+                    </p>
+                  );
+                const portalTotals  = pointsResult.portalGroups.map(g => g.priceUsd);
+                const nightsDivisor = roomQty * nights || 1;
+                const portalNightly = portalTotals.map(v => v / nightsDivisor);
+                return (
+                  <div data-testid="room-price-range" className={`flex flex-col gap-2 pt-2 border-t ${divider}`}>
+                    <div>
+                      <p className={`text-[10px] font-semibold font-mono tracking-widest uppercase ${textMuted}`}>
+                        Portal cash · per room / night
+                      </p>
+                      {renderRange(
+                        Math.min(...portalNightly),
+                        Math.max(...portalNightly),
+                        `text-sm font-bold font-mono tracking-tight mt-0.5 ${textPrimary}`,
+                      )}
+                    </div>
+                    <div>
+                      <p className={`text-[10px] font-semibold font-mono tracking-widest uppercase ${textMuted}`}>
+                        Portal cash · total
+                      </p>
+                      {renderRange(
+                        Math.min(...portalTotals),
+                        Math.max(...portalTotals),
+                        `text-xl font-extrabold font-mono tracking-tight mt-0.5 ${textPrimary}`,
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
@@ -613,7 +625,7 @@ export function HotelDetailModal({ searchResult, onClose }: { searchResult: any;
               )}
             </div>
             <div className="text-right shrink-0">
-              <p className={`text-[9.5px] font-bold font-mono tracking-widest uppercase mb-1 ${textMuted}`}>FROM · CASH</p>
+              <p className={`text-[9.5px] font-bold font-mono tracking-widest uppercase mb-1 ${textMuted}`}>FROM</p>
               <p className={`text-3xl font-extrabold tracking-tight leading-none ${textPrimary}`}>
                 {totalAmount.toLocaleString('en-US', { style: 'currency', currency, maximumFractionDigits: 0 })}
               </p>

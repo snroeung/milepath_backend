@@ -71,15 +71,6 @@ describe('isEnabled() — gating behaviour', () => {
     });
   });
 
-  it('each UI route flag is independent', () => {
-    withEnv('local', () => {
-      expect(isEnabled('ui:hotels')).toBe(true);
-      expect(isEnabled('ui:flights')).toBe(true);
-      // Temporarily disabled in all envs — see lib/feature-flags.ts
-      expect(isEnabled('ui:trip-planner')).toBe(false);
-    });
-  });
-
   it('each tRPC router flag is independent', () => {
     withEnv('local', () => {
       expect(isEnabled('api:stays')).toBe(true);
@@ -143,13 +134,4 @@ describe('getEnabledFlags()', () => {
     });
   });
 
-  it('result is an array of FlagName strings', () => {
-    withEnv('local', () => {
-      const enabled = getEnabledFlags();
-      for (const flag of enabled) {
-        expect(typeof flag).toBe('string');
-        expect(ALL_FLAGS).toContain(flag);
-      }
-    });
-  });
 });

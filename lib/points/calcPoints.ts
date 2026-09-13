@@ -11,7 +11,6 @@ import {
   CARD_PORTAL_MAP,
   CARD_NAMES,
   PORTAL_NAMES,
-  CHASE_LEGACY_CPP,
 } from './types';
 import { calcTransferAlternatives, TransferPartnerConfig, PointsValuationConfig } from './transferPartners';
 import { PORTAL_FLIGHT_MARKUP, PORTAL_HOTEL_MARKUP } from './portalMarkup';
@@ -72,20 +71,11 @@ export function calcPoints(
     // the portal's price from the base price using the calibrated markup.
     const portalPrice = portalPrices?.[portalId] ?? priceUsd * markup;
 
-    // Chase Points Boost means we don't know which redemption rate applies to
-    // a selected chase_reserve/chase_preferred card, so both candidate rates
-    // (legacy fixed + new baseline) enter the dedup pool as separate entries.
-    type Candidate = { cardId: CardId; cpp: number; rateVariant?: 'legacy' | 'new' };
-    const candidates: Candidate[] = [];
-    for (const cardId of cards) {
-      const legacyCpp = CHASE_LEGACY_CPP[cardId];
-      if (legacyCpp !== undefined) {
-        candidates.push({ cardId, cpp: legacyCpp, rateVariant: 'legacy' });
-        candidates.push({ cardId, cpp: resolveCpp(cardId, bookingType), rateVariant: 'new' });
-      } else {
-        candidates.push({ cardId, cpp: resolveCpp(cardId, bookingType) });
-      }
-    }
+    type Candidate = { cardId: CardId; cpp: number };
+    const candidates: Candidate[] = cards.map((cardId) => ({
+      cardId,
+      cpp: resolveCpp(cardId, bookingType),
+    }));
 
     // Deduplicate by CPP within this portal — one row per distinct CPP tier.
     // When two candidates share a CPP, keep the one with the higher earn rate.
@@ -101,7 +91,7 @@ export function calcPoints(
     const results: PortalResult[] = Array.from(byCpp.entries())
       .sort(([a], [b]) => b - a)
       .map(([cpp, candidate]) => {
-        const { cardId, rateVariant } = candidate;
+        const { cardId } = candidate;
         const earnRate = resolveEarnRate(cardId, bookingType);
         return {
           portalId,
@@ -119,7 +109,6 @@ export function calcPoints(
           pointsEarned: Math.floor(portalPrice * earnRate),
           estimated: true as const,
           bookingType,
-          chaseRateVariant: rateVariant,
         };
       });
 

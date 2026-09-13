@@ -9,6 +9,7 @@ import { redis } from "@/lib/redis";
 import { searchHotels } from "@/lib/hotelbeds";
 import { adaptHotelBedsResults } from "@/lib/adapters/hotelbeds-adapter";
 import { groupDuffelRooms, type NormalizedRoom } from "@/lib/adapters/duffel-rooms-adapter";
+import { groupSimilarRooms } from "@/lib/adapters/room-name-match";
 import { matchHotels } from "@/lib/hotelbeds-match";
 import { matchHotelCollections, type CollectionMatchEntry } from "@/lib/travelCollectionMatch";
 import { createClient } from "@/lib/supabase/server";
@@ -137,7 +138,9 @@ export const staysRouter = router({
           });
           const rawRoomCount = rooms!.length;
           rooms = groupDuffelRooms(rooms!);
-          console.log(`[stays] fetchAllRates ${input.searchResultId} → ${rawRoomCount} raw → ${rooms.length} grouped rooms`);
+          const exactGroupedCount = rooms.length;
+          rooms = groupSimilarRooms(rooms);
+          console.log(`[stays] fetchAllRates ${input.searchResultId} → ${rawRoomCount} raw → ${exactGroupedCount} exact-grouped → ${rooms.length} similarity-grouped rooms`);
           rooms!.forEach((r) => {
             const src = r.photos.length > 0
               ? (photosByName[r.name]?.length && r.photos[0].url === photosByName[r.name][0].url ? "accommodation.get" : "fetchAllRates")

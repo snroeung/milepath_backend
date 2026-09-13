@@ -40,7 +40,7 @@ const FLAGS_CONFIG: Record<FlagName, FlagDef> = {
   "ui:hotels":                 { enabledIn: ["local", "beta",], description: "/hotels page" },
   "ui:flights":                { enabledIn: ["local", "beta", "production"], description: "/flights page" },
   "ui:search":                 { enabledIn: ["local", "beta", "production"], description: "/search hub page" },
-  "ui:trip-planner":           { enabledIn: [], description: "/trip-planner pages" },
+  "ui:trip-planner":           { enabledIn: ["local", "beta"], description: "/trip-planner pages" },
 
   "api:stays":                 { enabledIn: ["local", "beta", "production"], description: "stays tRPC router" },
   "api:flights":               { enabledIn: ["local", "beta", "production"], description: "flights tRPC router" },

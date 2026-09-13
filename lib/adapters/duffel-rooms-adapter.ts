@@ -15,7 +15,7 @@ export interface NormalizedRoom {
   rates: NormalizedRoomRate[];
 }
 
-function bedsKey(beds: NormalizedRoom["beds"]): string {
+export function bedsKey(beds: NormalizedRoom["beds"]): string {
   return [...beds]
     .sort((a, b) => a.type.localeCompare(b.type))
     .map((b) => `${b.count}x${b.type}`)
