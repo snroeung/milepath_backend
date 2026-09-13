@@ -168,7 +168,7 @@ function SearchHome() {
             </h1>
             <p className={`mt-3 max-w-xl text-sm md:text-base ${muted}`}>
               Search cash and points side by side across every travel portal — ranked by true
-              cents-per-point value before you book.
+              cents-per-point value.
             </p>
           </div>
           <SearchModeToggle mode={mode} onChange={setMode} />

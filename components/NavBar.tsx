@@ -127,9 +127,11 @@ export function NavBar() {
           )}
         </div>
 
+        {/* Trip Planner temporarily hidden — ui:trip-planner disabled in lib/feature-flags.ts
         <Link href="/trip-planner" className={navLinkCls(pathname === '/trip-planner')}>
           Trip Planner
         </Link>
+        */}
 
         {offersEnabled && (
           <Link href="/offers" className={navLinkCls(pathname.startsWith('/offers'))}>

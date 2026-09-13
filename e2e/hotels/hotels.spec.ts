@@ -111,7 +111,7 @@ test.describe('Hotels page — results', () => {
     // Hotel pricing is per room type, so a card-level winner would be a guess.
     // The card shows the cash price only; the comparison starts in the modal.
     const card = cards.first();
-    await expect(card.getByText('From · Cash')).toBeVisible();
+    await expect(card.getByText('From')).toBeVisible();
     await expect(card.getByTestId('redemption-table')).toHaveCount(0);
     await expect(card.getByRole('button', { name: /^Compare \d+ portals?/ })).toHaveCount(0);
     await expect(card.getByText('Best choice')).toHaveCount(0);
@@ -152,6 +152,25 @@ test.describe('Hotels page — results', () => {
     // so any visible room card is guaranteed a points comparison.
     const compareButton = page.getByRole('button', { name: /^Compare \d+ portals$/ });
     await expect(compareButton.first()).toBeVisible({ timeout: 15_000 });
+
+    // Room cards show only two portal cash ranges — per-room-per-night and
+    // total — no standalone single-value cash/night figures.
+    await expect(page.getByText('Portal cash · per room / night').first()).toBeVisible();
+    await expect(page.getByText('Portal cash · total').first()).toBeVisible();
+    await expect(page.getByText('Total · Cash')).toHaveCount(0);
+
+    // Quantity-available badge ("N available" / "Only N rooms left") was
+    // removed from room type cards.
+    await expect(page.getByText(/room.?s? left/i)).toHaveCount(0);
+    await expect(page.getByText(/^\d+ available$/)).toHaveCount(0);
+
+    // Scoped to the price-range markup itself — the modal's rooms carousel
+    // has pre-existing, unrelated landmark/scroll-focus findings that are
+    // out of scope for this formatting fix.
+    const roomPricingAxe = await new AxeBuilder({ page })
+      .include('[data-testid="room-price-range"]')
+      .analyze();
+    expect(roomPricingAxe.violations).toEqual([]);
 
     await compareButton.first().click();
 

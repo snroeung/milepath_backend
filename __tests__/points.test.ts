@@ -13,7 +13,7 @@ describe('calcPoints()', () => {
   it('1. basic Chase Reserve hotel — portal price = base × 1.06 hotel markup', () => {
     const result = calcPoints(620, 'hotel', ['chase_reserve']);
     expect(result.portalResults).toHaveLength(1);
-    expect(result.portalResults[0].pointsNeeded).toBe(Math.ceil((620 * 1.06) / 0.015)); // 43,814
+    expect(result.portalResults[0].pointsNeeded).toBe(Math.ceil((620 * 1.06) / 0.01)); // 65,720
     expect(result.portalResults[0].priceUsd).toBeCloseTo(620 * 1.06);
   });
 
@@ -21,7 +21,7 @@ describe('calcPoints()', () => {
     const result = calcPoints(500, 'hotel', ['chase_reserve', 'chase_preferred']);
     expect(result.portalResults).toHaveLength(1);
     expect(result.portalResults[0].cardId).toBe('chase_reserve');
-    expect(result.portalResults[0].pointsNeeded).toBe(Math.ceil((500 * 1.06) / 0.015)); // 35,334
+    expect(result.portalResults[0].pointsNeeded).toBe(Math.ceil((500 * 1.06) / 0.01)); // 53,000
   });
 
   it('3a. Amex hotel uses 0.7¢ and 1.10 hotel markup', () => {
@@ -41,7 +41,7 @@ describe('calcPoints()', () => {
       ['chase_reserve', 'amex_platinum', 'c1_venture_x', 'bilt_blue', 'citi_strata_premier']
     );
     expect(result.portalResults).toHaveLength(5);
-    expect(result.portalResults[0].portalId).toBe('chase'); // 1.5¢ = fewest points
+    expect(result.portalResults[0].portalId).toBe('bilt'); // 1.25¢ / 1.07 markup = fewest points
     for (let i = 1; i < result.portalResults.length; i++) {
       expect(result.portalResults[i].pointsNeeded).toBeGreaterThanOrEqual(
         result.portalResults[i - 1].pointsNeeded
@@ -55,9 +55,9 @@ describe('calcPoints()', () => {
     expect(result.portalResults[0].portalId).toBe('citi');
   });
 
-  it('6. Math.ceil enforcement — 100 × 1.06 / 0.015 = 7066.67 → 7067', () => {
+  it('6. Math.ceil enforcement — 100 × 1.06 / 0.01 = 10,600', () => {
     const result = calcPoints(100, 'hotel', ['chase_reserve']);
-    expect(result.portalResults[0].pointsNeeded).toBe(7067);
+    expect(result.portalResults[0].pointsNeeded).toBe(10600);
   });
 
   it('7. guard: priceUsd = 0 throws', () => {
@@ -103,7 +103,7 @@ describe('calcPoints() portal markup', () => {
 
   it('12. centsPerPoint is effective value (rate / markup), rounded to 2dp', () => {
     const hotel = calcPoints(620, 'hotel', ['chase_reserve']);
-    expect(hotel.portalResults[0].centsPerPoint).toBe(Math.round((1.5 / PORTAL_HOTEL_MARKUP.chase) * 100) / 100); // 1.42
+    expect(hotel.portalResults[0].centsPerPoint).toBe(Math.round((1.0 / PORTAL_HOTEL_MARKUP.chase) * 100) / 100); // 0.94
     const c1 = calcPoints(620, 'hotel', ['c1_venture_x']);
     expect(c1.portalResults[0].centsPerPoint).toBe(0.99); // 1.0 / 1.008
   });
@@ -111,9 +111,9 @@ describe('calcPoints() portal markup', () => {
   it('13. portalPrices override is treated as a real portal quote — no re-markup', () => {
     const result = calcPoints(500, 'hotel', ['chase_reserve'], undefined, { chase: 550 });
     expect(result.portalResults[0].priceUsd).toBe(550);
-    expect(result.portalResults[0].pointsNeeded).toBe(Math.ceil(550 / 0.015)); // 36,667
+    expect(result.portalResults[0].pointsNeeded).toBe(Math.ceil(550 / 0.01)); // 55,000
     // effective cpp derives from the real quote, not the calibrated constant
-    expect(result.portalResults[0].centsPerPoint).toBe(Math.round(1.5 * (500 / 550) * 100) / 100); // 1.36
+    expect(result.portalResults[0].centsPerPoint).toBe(Math.round(1.0 * (500 / 550) * 100) / 100); // 0.91
   });
 
   it('14. pointsEarned accrues on the marked-up portal price', () => {
@@ -123,42 +123,29 @@ describe('calcPoints() portal markup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// calcPoints() — Chase Points Boost dual-rate rows
+// calcPoints() — Chase current-rate only (legacy fixed rates dropped)
 // ---------------------------------------------------------------------------
 
-describe('calcPoints() Chase Points Boost dual-rate', () => {
-  it('15. chase_reserve alone yields both a legacy and a new-rate row in portalGroups', () => {
+describe('calcPoints() Chase current-rate only', () => {
+  it('15. chase_reserve alone yields a single Points Boost baseline row', () => {
     const result = calcPoints(620, 'hotel', ['chase_reserve']);
     const chaseGroup = result.portalGroups.find((g) => g.portalId === 'chase')!;
-    expect(chaseGroup.results).toHaveLength(2);
-
-    const legacy = chaseGroup.results.find((r) => r.chaseRateVariant === 'legacy')!;
-    const newRate = chaseGroup.results.find((r) => r.chaseRateVariant === 'new')!;
-    expect(legacy).toBeDefined();
-    expect(newRate).toBeDefined();
-    expect(legacy.pointsNeeded).toBe(Math.ceil((620 * 1.06) / 0.015));
-    expect(newRate.pointsNeeded).toBe(Math.ceil((620 * 1.06) / 0.01));
-
-    // top-level portalResults still surfaces the legacy (higher-cpp) row as the headline pick
-    expect(result.portalResults[0].chaseRateVariant).toBe('legacy');
+    expect(chaseGroup.results).toHaveLength(1);
+    expect(chaseGroup.results[0].pointsNeeded).toBe(Math.ceil((620 * 1.06) / 0.01));
   });
 
-  it('16. chase_reserve + chase_preferred → three distinct cpp tiers (two legacy + one shared new-rate row)', () => {
+  it('16. chase_reserve + chase_preferred share the same cpp tier, deduped to one row', () => {
     const result = calcPoints(500, 'hotel', ['chase_reserve', 'chase_preferred']);
     const chaseGroup = result.portalGroups.find((g) => g.portalId === 'chase')!;
-    expect(chaseGroup.results).toHaveLength(3);
+    expect(chaseGroup.results).toHaveLength(1);
 
-    expect(chaseGroup.results.filter((r) => r.chaseRateVariant === 'legacy')).toHaveLength(2);
-    expect(chaseGroup.results.filter((r) => r.chaseRateVariant === 'new')).toHaveLength(1);
-
-    // new-rate tie between reserve (10x hotel) and preferred (5x hotel) goes to reserve's higher earn rate
-    const newRow = chaseGroup.results.find((r) => r.chaseRateVariant === 'new')!;
-    expect(newRow.cardId).toBe('chase_reserve');
+    // tie between reserve (10x hotel) and preferred (5x hotel) goes to reserve's higher earn rate
+    expect(chaseGroup.results[0].cardId).toBe('chase_reserve');
   });
 
-  it("17. cards outside Chase are unaffected — no chaseRateVariant tag", () => {
+  it('17. cards outside Chase are unaffected', () => {
     const result = calcPoints(400, 'hotel', ['amex_platinum']);
-    expect(result.portalGroups.find((g) => g.portalId === 'amex')!.results[0].chaseRateVariant).toBeUndefined();
+    expect(result.portalGroups.find((g) => g.portalId === 'amex')!.results).toHaveLength(1);
   });
 });
 

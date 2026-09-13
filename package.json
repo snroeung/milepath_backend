@@ -14,7 +14,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "portal-sync": "tsx scripts/portal-sync/run.ts",
-    "portal-sync:eval": "tsx scripts/portal-sync/eval.ts"
+    "portal-sync:eval": "tsx scripts/portal-sync/eval.ts",
+    "seed:local-admin": "tsx scripts/seed-local-admin.ts"
   },
   "overrides": {
     "postcss": "^8.5.25",

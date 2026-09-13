@@ -112,7 +112,7 @@ export function HotelCard({ searchResult, onOpenDetail }: { searchResult: any; d
             {/* Cash price — the room-level redemption comparison prices against it */}
             <div className="float-right ml-4 text-right">
               <p className={`text-[10px] font-bold font-mono tracking-widest uppercase mb-1 ${textMuted}`}>
-                From · Cash
+                From
               </p>
               <p className={`text-2xl font-extrabold tracking-tight leading-none ${textPrimary}`}>
                 {fmtMoney(totalAmount)}

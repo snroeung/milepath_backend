@@ -49,15 +49,6 @@ export interface PortalResult {
   pointsEarned: number;
   estimated: true;
   bookingType: BookingType;
-  /**
-   * Set only for chase_reserve/chase_preferred rows. Chase Travel replaced its
-   * fixed redemption rates with "Points Boost" for cardholders who applied
-   * 2025-06-23 or later; we don't ask which cohort the user is in, so both
-   * rates are surfaced as separate rows — 'legacy' is the old fixed rate
-   * (grandfathered until CHASE_LEGACY_RATE_SUNSET_DATE), 'new' is the flat
-   * 1.0¢/pt baseline (actual per-booking boost, up to 2.0¢/pt, isn't modeled).
-   */
-  chaseRateVariant?: 'legacy' | 'new';
 }
 
 /**
@@ -158,14 +149,6 @@ export interface PointsResult {
   bestTransferResult: TransferResult | null;
 }
 
-/**
- * Chase Points Boost replaced the old fixed Chase Travel redemption rates on
- * 2025-06-23. Cardholders who applied before that date keep the legacy fixed
- * rate, grandfathered until this date — after which everyone is on the
- * baseline+boost model and CHASE_LEGACY_CPP no longer applies.
- */
-export const CHASE_LEGACY_RATE_SUNSET_DATE = '2027-10-26';
-
 export interface PortalCppEntry {
   cpp: number | { hotel: number; flight: number };
   /** Issuer or, where the issuer's own terms page isn't independently fetchable, the best-available cross-checked source (e.g. TPG's program guide). */
@@ -178,10 +161,8 @@ export interface PortalCppEntry {
  * Cents per point when redeeming through each card's travel portal.
  * Higher = more value per point = fewer points needed.
  *
- * chase_reserve/chase_preferred here hold the "new cardholder" Points Boost
- * baseline (1.0¢/pt flat). We don't ask the user which cohort they're in, so
- * calcPoints() also checks CHASE_LEGACY_CPP below and — when present — emits
- * a second row at the old fixed rate alongside this baseline row.
+ * chase_reserve/chase_preferred hold the current Points Boost baseline
+ * (1.0¢/pt flat); the old fixed legacy rates are no longer modeled.
  */
 export const PORTAL_CPP: Record<CardId, PortalCppEntry> = {
   chase_reserve: {
@@ -258,17 +239,6 @@ export const PORTAL_CPP: Record<CardId, PortalCppEntry> = {
     sourceUrl: 'https://www.citi.com/credit-cards/citi-strata-premier-credit-card',
     lastVerified: '2026-08-13',
   },
-};
-
-/**
- * Old fixed Chase Travel redemption rates, grandfathered for cardholders who
- * applied before 2025-06-23 until CHASE_LEGACY_RATE_SUNSET_DATE. calcPoints()
- * emits an extra row at this rate (tagged chaseRateVariant: 'legacy') next to
- * the baseline PORTAL_CPP row (tagged 'new') for any selected card present here.
- */
-export const CHASE_LEGACY_CPP: Partial<Record<CardId, number>> = {
-  chase_reserve:   1.5,   // legacy 50% travel portal bonus
-  chase_preferred: 1.25,  // legacy 25% travel portal bonus
 };
 
 /**

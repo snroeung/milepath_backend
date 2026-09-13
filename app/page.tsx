@@ -212,7 +212,8 @@ export default function StartPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   { href: '/search',      label: 'Search Flights and Hotels',      sub: 'Compare price across all credit card portals and travel partners' },
-                  { href: '/trip-planner', label: 'Trip Planner',         sub: 'Plan your next adventure'         },
+                  // Trip Planner temporarily hidden — ui:trip-planner disabled in lib/feature-flags.ts
+                  // { href: '/trip-planner', label: 'Trip Planner',         sub: 'Plan your next adventure'         },
                   { href: '/offers',       label: 'Offers',  sub: 'Unlock deals tailored to you'      },
                 ].map(({ href, label, sub }) => (
                   <Link key={href} href={href} style={{
