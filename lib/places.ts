@@ -1,6 +1,7 @@
 import { redis } from './redis';
 import { isEnabled } from './feature-flags';
 import { CACHE, cacheKeys } from './cache-config';
+import { searchAirports, getStaticAirport } from './airports';
 
 const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -128,11 +129,18 @@ async function getAirportsInCountry(iso2: string): Promise<PlaceSuggestion[]> {
 }
 
 /**
- * Airport-mode autocomplete: tries a direct name match first, then falls back to
- * listing a country's airports when the input names a country instead of an airport
+ * Airport-mode autocomplete: matches the bundled public-airport list first (every
+ * IATA code, so a bare code like "CUN" always resolves even when Google's fuzzy
+ * text match on the airport name wouldn't surface it). Falls through to Google only
+ * when nothing local matches — a direct name search, then a country-name search
  * (e.g. "Japan" → NRT, HND, KIX, ...).
  */
 export async function getAirportsForQuery(input: string, sessionToken: string): Promise<PlaceSuggestion[]> {
+  const staticMatches = searchAirports(input);
+  if (staticMatches.length > 0) return staticMatches;
+
+  if (!isEnabled("integration:google-places:places")) return [];
+
   const direct = await getPlaceAutocomplete(input, sessionToken, 'airport');
   if (direct.length > 0) return direct;
 
@@ -230,6 +238,12 @@ export async function getPlaceLatLng(
   placeId: string,
   sessionToken: string,
 ): Promise<PlaceLatLng> {
+  // Bundled airport pick — coordinates come from the static list, no Google call needed.
+  const staticAirport = getStaticAirport(placeId);
+  if (staticAirport) {
+    return { latitude: staticAirport.lat, longitude: staticAirport.lon, name: staticAirport.name };
+  }
+
   const cacheKey = cacheKeys.placeLatLng(placeId);
 
   // Cache hit — Redis failure is non-fatal; fall through to live API

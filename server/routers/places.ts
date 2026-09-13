@@ -16,15 +16,17 @@ export const placesRouter = router({
       types: z.string().optional(),
     }))
     .query(async ({ input: { input, sessionToken, types } }) => {
+      // Airport mode matches the bundled IATA list first and only reaches Google as a
+      // fallback (guarded internally in getAirportsForQuery) — it works with this flag off.
+      if (types === 'airport') return getAirportsForQuery(input, sessionToken);
+
       if (!isEnabled("integration:google-places:places")) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Places integration is not available in this environment.",
         });
       }
-      return types === 'airport'
-        ? getAirportsForQuery(input, sessionToken)
-        : getPlaceAutocomplete(input, sessionToken, types);
+      return getPlaceAutocomplete(input, sessionToken, types);
     }),
 
   /**
@@ -54,7 +56,9 @@ export const placesRouter = router({
       sessionToken: z.string().uuid(),
     }))
     .query(async ({ input: { placeId, sessionToken } }) => {
-      if (!isEnabled("integration:google-places:places")) {
+      // Bundled-airport picks (placeId "iata:XXX") resolve locally — no Google call, so
+      // they work with this flag off. Everything else still needs live Google Places.
+      if (!placeId.startsWith('iata:') && !isEnabled("integration:google-places:places")) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Places integration is not available in this environment.",

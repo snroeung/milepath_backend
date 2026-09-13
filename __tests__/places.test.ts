@@ -10,10 +10,11 @@ vi.mock('@/lib/redis', () => ({
 }));
 
 vi.mock('@/lib/feature-flags', () => ({
-  isEnabled: () => true,
+  isEnabled: vi.fn(),
 }));
 
 import { redis } from '@/lib/redis';
+import { isEnabled } from '@/lib/feature-flags';
 import { getAirportsForQuery } from '@/lib/places';
 
 const AUTOCOMPLETE_URL = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
@@ -21,7 +22,6 @@ const DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
 
 const NRT = { place_id: 'nrt_id', description: 'Narita International Airport (NRT), Narita, Chiba, Japan' };
 const HND = { place_id: 'hnd_id', description: 'Haneda Airport (HND), Ota, Tokyo, Japan' };
-const JFK = { place_id: 'jfk_id', description: 'John F. Kennedy International Airport (JFK), Queens, NY, USA' };
 const JAPAN = { place_id: 'japan_id', types: ['country', 'political'] };
 
 function mockJapanAirports(onCountryCall?: () => void) {
@@ -49,31 +49,50 @@ function mockJapanAirports(onCountryCall?: () => void) {
 describe('getAirportsForQuery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (isEnabled as Mock).mockReturnValue(true);
     (redis.get as Mock).mockResolvedValue(null);
     (redis.set as Mock).mockResolvedValue('OK');
   });
 
-  it('returns direct airport matches without any country fallback calls', async () => {
-    let detailsCalled = false;
+  it('matches a bundled IATA code without calling Google — covers airports like CUN that Google\'s text match misses', async () => {
+    let googleCalled = false;
+    server.use(http.get(AUTOCOMPLETE_URL, () => {
+      googleCalled = true;
+      return HttpResponse.json({ status: 'ZERO_RESULTS', predictions: [] });
+    }));
+
+    const result = await getAirportsForQuery('CUN', 'session-1');
+
+    expect(result[0]).toEqual({ placeId: 'iata:CUN', description: expect.stringContaining('(CUN)') });
+    expect(googleCalled).toBe(false);
+  });
+
+  it('matches a bundled airport by city name', async () => {
+    const result = await getAirportsForQuery('Cancun', 'session-1');
+
+    expect(result).toEqual([{ placeId: 'iata:CUN', description: expect.stringContaining('(CUN)') }]);
+  });
+
+  it('falls back to Google for a direct match when nothing in the bundled list matches', async () => {
     server.use(
       http.get(AUTOCOMPLETE_URL, ({ request }) => {
         const types = new URL(request.url).searchParams.get('types');
-        if (types === 'airport') return HttpResponse.json({ status: 'OK', predictions: [JFK] });
+        if (types === 'airport') {
+          return HttpResponse.json({
+            status: 'OK',
+            predictions: [{ place_id: 'made_up_id', description: 'Made Up Private Strip (ZZZ), Nowhere' }],
+          });
+        }
         return HttpResponse.json({ status: 'ZERO_RESULTS', predictions: [] });
-      }),
-      http.get(DETAILS_URL, () => {
-        detailsCalled = true;
-        return HttpResponse.json({ status: 'OK', result: {} });
       }),
     );
 
-    const result = await getAirportsForQuery('JFK', 'session-1');
+    const result = await getAirportsForQuery('zzzznonexistentplace', 'session-1');
 
-    expect(result).toEqual([{ placeId: 'jfk_id', description: JFK.description }]);
-    expect(detailsCalled).toBe(false);
+    expect(result).toEqual([{ placeId: 'made_up_id', description: 'Made Up Private Strip (ZZZ), Nowhere' }]);
   });
 
-  it('falls back to a country\'s airports when the direct airport search is empty', async () => {
+  it('falls back to a country\'s airports when neither the bundled list nor a direct Google match exist', async () => {
     mockJapanAirports();
 
     const result = await getAirportsForQuery('Japan', 'session-1');
@@ -84,16 +103,10 @@ describe('getAirportsForQuery', () => {
     ]);
   });
 
-  it('returns an empty list when the input matches neither an airport nor a country', async () => {
-    server.use(
-      http.get(AUTOCOMPLETE_URL, ({ request }) => {
-        const types = new URL(request.url).searchParams.get('types');
-        if (types === '(regions)') return HttpResponse.json({ status: 'ZERO_RESULTS', predictions: [] });
-        return HttpResponse.json({ status: 'ZERO_RESULTS', predictions: [] });
-      }),
-    );
+  it('returns an empty list when the input matches neither a bundled airport, a direct Google match, nor a country', async () => {
+    server.use(http.get(AUTOCOMPLETE_URL, () => HttpResponse.json({ status: 'ZERO_RESULTS', predictions: [] })));
 
-    const result = await getAirportsForQuery('asdfqwer', 'session-1');
+    const result = await getAirportsForQuery('asdfqwerasdfqwer', 'session-1');
 
     expect(result).toEqual([]);
   });
@@ -126,5 +139,19 @@ describe('getAirportsForQuery', () => {
       { placeId: 'hnd_id', description: HND.description },
     ]);
     expect(countryCallCount).toBe(1);
+  });
+
+  it('skips the Google fallback entirely when the Google Places integration is disabled', async () => {
+    (isEnabled as Mock).mockReturnValue(false);
+    let googleCalled = false;
+    server.use(http.get(AUTOCOMPLETE_URL, () => {
+      googleCalled = true;
+      return HttpResponse.json({ status: 'ZERO_RESULTS', predictions: [] });
+    }));
+
+    const result = await getAirportsForQuery('zzzznonexistentplace', 'session-1');
+
+    expect(result).toEqual([]);
+    expect(googleCalled).toBe(false);
   });
 });
